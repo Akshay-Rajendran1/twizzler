@@ -74,7 +74,7 @@ members = [
     #"src/bin/gfxtest",
     "src/bin/stdnet_test", "src/lib/twizzler-io", "src/bin/shell",
     #"src/lib/sgtest", "src/srv/sgtest-srv",
-    "src/lib/twizzler-net", "src/bin/sshd",
+    "src/lib/twizzler-net", "src/bin/sshd", "src/bin/ip",
 ]
 
 exclude = [
@@ -108,7 +108,7 @@ initrd = [
     #"crate:gfxtest",
     "crate:shell",
     "crate:sshd",
-
+    "crate:ip",
     "crate:sec",
     "crate:ptest",
     #"crate:sqlite_test",

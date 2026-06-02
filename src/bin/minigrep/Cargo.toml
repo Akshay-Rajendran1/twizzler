@@ -1,0 +1,11 @@
+[package]
+name = "minigrep"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+twizzler-abi = {path = "../../lib/twizzler-abi"}
+twizzler-security = {path = "../../lib/twizzler-security", features = ["user"]}
+twizzler = { path = "../../lib/twizzler" }
+twizzler-rt-abi = "0.99"
+heapless = "0.9.2"

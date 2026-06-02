@@ -15,6 +15,7 @@ pub struct NetServer {
     client_rx: Pair<ServerMsg, ClientRet>,
     pending_client_tx: PacketSet,
     pending_client_id: Option<u32>,
+    pub pending_cmd: Option<(u32, crate::ControlCmd)>,
 }
 
 impl NetServer {
@@ -37,6 +38,7 @@ impl NetServer {
                 .0
                 .iter()
                 .any(|p| *p != INVALID_PACKET)
+	   || self.pending_cmd.is_some()
     }
 
     pub fn open(info: &NetClientOpenInfo) -> Result<Self, TwzError> {
@@ -61,8 +63,16 @@ impl NetServer {
             client_rx: rx,
             pending_client_id: None,
             pending_client_tx: PacketSet::new(),
+	    pending_cmd: None,
         })
     }
+	pub fn reply_control_cmd(&mut self, req_id: u32, resp: crate::ControlResponse) {
+            // Acknowledge the original request
+            self.client_tx.complete(req_id, ServerRet {});
+            // Push the actual data response to the client's RX queue
+            let msg = crate::ServerMsg { kind: crate::ServerMsgKind::Response(resp) };
+            let _ = self.client_rx.submit_msg(msg);
+	}
 }
 
 impl smoltcp::phy::Device for NetServer {
@@ -108,12 +118,15 @@ impl smoltcp::phy::Device for NetServer {
         }
 
         let (id, msg) = self.client_tx.recv_msg()?;
-        self.pending_client_id = Some(id);
         match msg.kind {
             ClientMsgKind::Tx(packet_set) => {
-                self.pending_client_tx = packet_set;
+                self.pending_client_id = Some(id);
+		self.pending_client_tx = packet_set;
             }
-        }
+            ClientMsgKind::Cmd(cmd) => {
+	        self.pending_cmd = Some((id, cmd));
+	    }
+	}
         self.receive(timestamp)
     }
 

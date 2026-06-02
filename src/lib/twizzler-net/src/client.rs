@@ -50,7 +50,41 @@ impl NetClient {
     pub fn has_rx_pending(&self) -> bool {
         self.rx.has_pending_msg() || self.pending_rx.0.iter().any(|p| *p != INVALID_PACKET)
     }
+
+	pub fn connect() -> Result<Self, &'static str> {
+        use secgate::util::Handle;
+	    match <Self as Handle>::open(crate::NetClientConfig {}) {
+            Ok(client) => Ok(client),
+            Err(_) => Err("Failed to establish secure connection to net-srv. Is net-srv running?"),
+            }
+    }
+
+    pub fn submit_control_cmd(&mut self, cmd: crate::ControlCmd) -> Result<u32, &'static str> {
+        let msg = crate::ClientMsg { kind: crate::ClientMsgKind::Cmd(cmd) };
+        let req_id = self.tx.submit_msg(msg).map_err(|_| "TX queue is full!")?;
+        Ok(req_id)
+    }
+
+    pub fn wait_for_completion(&mut self, _request_id: u32) -> Result<crate::ControlResponse, &'static str> {
+        loop {
+            // Constantly poll the RX queue for an answer from net-srv
+            if let Some((id, msg)) = self.rx.recv_msg() {
+                self.rx.complete(id, crate::ClientRet {});
+                
+                if let crate::ServerMsgKind::Response(resp) = msg.kind {
+                    return Ok(resp);
+                }
+            }
+            
+            // Sleep the thread so we don't burn 100% CPU while waiting
+            let _ = twizzler_abi::syscall::sys_thread_sync(
+                &mut [twizzler_abi::syscall::ThreadSync::new_sleep(self.rx_waiter())], 
+                None
+            );
+        }
+    }
 }
+
 
 pub fn net_open_client(config: NetClientConfig) -> Result<NetClientOpenInfo, TwzError> {
     let comp = CompartmentHandle::lookup("net")?;
@@ -171,6 +205,7 @@ impl smoltcp::phy::Device for NetClient {
             ServerMsgKind::Tx(packet_set) => {
                 self.pending_rx = packet_set;
             }
+	    _ => {}
         }
         self.receive(timestamp)
     }

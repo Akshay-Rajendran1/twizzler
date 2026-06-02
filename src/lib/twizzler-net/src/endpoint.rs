@@ -154,6 +154,15 @@ impl<S: Copy, C: Copy> Pair<S, C> {
             self.release_packet(packet);
         }
     }
+    pub fn submit_msg(&self, msg: S) -> std::io::Result<u32> {
+        let mut inner = self.inner.lock().unwrap();
+        let id = inner.next_id();
+        drop(inner);
+        self.queue
+            .submit(id, msg, SubmissionFlags::empty())
+            .map_err(|_| ErrorKind::Other)?;
+        Ok(id)
+    }
 
     pub fn check_completions(&self) {
         let mut inner = self.inner.lock().unwrap();

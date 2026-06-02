@@ -1,3 +1,4 @@
+use std::net::Ipv4Addr;
 use secgate::TwzError;
 pub use twizzler_io::packet;
 
@@ -83,12 +84,46 @@ pub struct ServerMsg {
 #[repr(C)]
 pub enum ClientMsgKind {
     Tx(PacketSet),
+    Cmd(ControlCmd),
 }
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub enum ServerMsgKind {
     Tx(PacketSet),
+    Response(ControlResponse),
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub enum ControlCmd {
+    GetInterfaceState,
+    AddIp(Ipv4Info),
+    DelIp(Ipv4Info),
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct InterfaceState {
+    pub iface_index: u32,
+    pub iface_name: [u8; 16],
+    pub addresses: [Ipv4Info; 8],
+    pub address_count: usize,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct Ipv4Info {
+    pub ip: Ipv4Addr,
+    pub prefix: u8,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub enum ControlResponse {
+    InterfaceState(InterfaceState),
+    Ok,
+    Error,
 }
 
 #[derive(Clone, Copy, Debug)]
